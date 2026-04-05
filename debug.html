@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Debug - Flidoh Construction</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Barlow', monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #d4af37;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            background: #1a1a1a;
+            border: 1px solid #d4af37;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        
+        .section h2 {
+            color: #d4af37;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            background: #0a0a0a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #d4af37;
+            box-shadow: 0 0 5px rgba(212, 175, 55, 0.3);
+        }
+        
+        button {
+            background: #d4af37;
+            color: #000;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #e5c158;
+            transform: scale(1.05);
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #1a3a1a;
+            border: 1px solid #4a9a4a;
+            color: #7eff7e;
+            display: block;
+        }
+        
+        .status.error {
+            background: #3a1a1a;
+            border: 1px solid #9a4a4a;
+            color: #ff7e7e;
+            display: block;
+        }
+        
+        pre {
+            background: #0a0a0a;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-top: 10px;
+            font-size: 0.85rem;
+        }
+        
+        .info {
+            background: #1a2a3a;
+            padding: 15px;
+            border-left: 3px solid #4a7a9a;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📧 Form Submission Debug Tool</h1>
+        
+        <div class="info">
+            <strong>ℹ️ Purpose:</strong> Test your form submission and see exactly what's happening with the data.
+        </div>
+        
+        <div class="section">
+            <h2>Test Form Submission</h2>
+            <form id="testForm">
+                <input type="text" id="firstName" placeholder="First Name" value="Test" required />
+                <input type="text" id="lastName" placeholder="Last Name" value="User" required />
+                <input type="email" id="email" placeholder="Email" value="test@example.com" required />
+                <select id="service">
+                    <option value="">Select Service</option>
+                    <option>Commercial Construction</option>
+                    <option>Residential Projects</option>
+                </select>
+                <textarea id="message" placeholder="Message" required rows="4">This is a test message from the debug tool.</textarea>
+                <button type="submit">Submit Test Form</button>
+            </form>
+            
+            <div id="status" class="status"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Response Details</h2>
+            <pre id="responseDetails">No submission yet...</pre>
+        </div>
+        
+        <div class="section">
+            <h2>View All Messages</h2>
+            <button onclick="loadAllMessages()">Load Messages</button>
+            <pre id="allMessages" style="margin-top: 15px;"></pre>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('testForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const statusDiv = document.getElementById('status');
+            const responseDiv = document.getElementById('responseDetails');
+            
+            statusDiv.style.display = 'none';
+            responseDiv.textContent = 'Sending...';
+            
+            const formData = new FormData(document.getElementById('testForm'));
+            const baseUrl = window.location.protocol === 'file:' ? 'http://localhost:3300' : '';
+            
+            try {
+                const response = await fetch(`${baseUrl}/submit_form.php`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const text = await response.text();
+                console.log('submit_form.php response:', text);
+                const data = JSON.parse(text);
+                
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    statusDiv.classList.remove('error');
+                    statusDiv.classList.add('success');
+                    statusDiv.innerHTML = `
+                        <strong>✓ Success!</strong><br>
+                        Message ID: ${data.id}<br>
+                        Email sent: ${data.email_sent ? 'Yes' : 'No (mail function may not be configured)'}<br>
+                        ${data.message}
+                    `;
+                } else {
+                    statusDiv.classList.remove('success');
+                    statusDiv.classList.add('error');
+                    statusDiv.innerHTML = `
+                        <strong>✗ Error:</strong><br>
+                        ${data.message}<br>
+                        ${data.errors ? 'Details: ' + data.errors.join(', ') : ''}
+                    `;
+                }
+                statusDiv.style.display = 'block';
+            } catch (error) {
+                responseDiv.textContent = 'Error: ' + error.message;
+                statusDiv.classList.remove('success');
+                statusDiv.classList.add('error');
+                statusDiv.innerHTML = '<strong>✗ Network Error:</strong><br>' + error.message;
+                statusDiv.style.display = 'block';
+            }
+        });
+
+        function loadAllMessages() {
+            const messagesDiv = document.getElementById('allMessages');
+            messagesDiv.textContent = 'Loading...';
+            const baseUrl = window.location.protocol === 'file:' ? 'http://localhost:3300' : '';
+
+            fetch(`${baseUrl}/get_messages.php`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    const data = JSON.parse(text);
+                    messagesDiv.textContent = JSON.stringify(data, null, 2);
+                })
+                .catch(err => {
+                    messagesDiv.textContent = 'Error loading messages: ' + err.message;
+                });
+        }
+    </script>
+</body>
+</html>
